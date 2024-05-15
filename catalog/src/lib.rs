@@ -61,11 +61,10 @@ use cfg_if::cfg_if;
 use parking_lot::Mutex;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
-use safe_once::cell::OnceCell;
 use safe_once::sync::{LazyLock, OnceLock};
 
 cfg_if!(
-    if #[cfg(any(target_arch = "wasm32", target_arch = "wasi"))] {
+    if #[cfg(any(target_arch = "wasm32"))] {
         #[path = "wasm_imp.rs"]
         mod imp;
     } else {

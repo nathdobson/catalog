@@ -13,15 +13,15 @@ parking_lot = { git = "https://github.com/Amanieu/parking_lot/", rev = "80194730
 safe-once = { path = "../../safe-once" }
 
 [target.'cfg(any(target_arch = "wasi", target_arch = "wasm32"))'.dependencies]
-getrandom = { version = "0.2.6", features = ["js"] }
-js-sys = { version = "0.3.57", features = [] }
-wasm-bindgen = "0.2.80"
+getrandom = { version = "0.2.15", features = ["js"] }
+js-sys = { version = "0.3.69", features = [] }
+wasm-bindgen = "0.2.92"
 
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_arch = "wasi")))'.dependencies]
-ctor = "0.1.22"
+ctor = "0.2.8"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.30"
+wasm-bindgen-test = "0.3.42"
 
 [target.'cfg(any(target_arch = "wasi", target_arch = "wasm32"))'.dev-dependencies]
 

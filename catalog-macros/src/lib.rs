@@ -1,3 +1,4 @@
+#![feature(proc_macro_span)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
@@ -17,14 +18,14 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::ReturnType::Default;
 use syn::{
-    parse, parse_macro_input, parse_quote, AttributeArgs, Data, DeriveInput, Error, Item, ItemFn,
-    ItemStatic, Lit, LitBool, LitByteStr, Meta, NestedMeta, Path, ReturnType, Token, Type,
+    parse, parse_macro_input, parse_quote, Data, DeriveInput, Error, Item, ItemFn, ItemStatic, Lit,
+    LitBool, LitByteStr, Meta, Path, ReturnType, StaticMutability, Token, Type,
 };
 
 fn ctor(crat: &Path, name: &Ident, body: &TokenStream2) -> TokenStream2 {
     let mut hasher = DefaultHasher::new();
     name.to_string().hash(&mut hasher);
-    name.span().source_file().path().hash(&mut hasher);
+    name.span().unwrap().source_file().path().hash(&mut hasher);
     name.span().start().line.hash(&mut hasher);
     name.span().start().column.hash(&mut hasher);
     name.span().end().line.hash(&mut hasher);
@@ -48,14 +49,14 @@ fn ctor(crat: &Path, name: &Ident, body: &TokenStream2) -> TokenStream2 {
                     #[wasm_bindgen::prelude::wasm_bindgen]
                     #[doc(hidden)]
                     pub fn #pub_ident_fn()  { #body }
+
+                    #[used]
+                    #[link_section = "registry_ctors"]
+                    #[doc(hidden)]
+                    #[no_mangle]
+                    pub static #pub_ident_static: [u8; #bytes.len()] = *#bytes;
+
                 };
-
-                #[used]
-                #[link_section = "registry_ctors"]
-                #[no_mangle]
-                #[doc(hidden)]
-                pub static #pub_ident_static: [u8; #bytes.len()] = *#bytes;
-
             } else {
                 #[#crat::reexport::ctor]
                 fn #pub_ident_fn() { #body }
@@ -106,7 +107,7 @@ impl Parse for CustomArgs {
             lazy: parse_quote!(false),
             crat: parse_quote!(::catalog),
         };
-        for arg in input.parse_terminated::<CustomArg, Comma>(CustomArg::parse)? {
+        for arg in input.parse_terminated::<CustomArg, _>(CustomArg::parse, Token![,])? {
             match arg {
                 CustomArg::Registry(x) => result.registry = Some(x),
                 CustomArg::Lazy(x) => result.lazy = x,
@@ -188,7 +189,7 @@ fn register_impl(args: CustomArgs, input: Item) -> Result<TokenStream2, Error> {
                     expr,
                     semi_token,
                 } = s;
-                if let Some(mutability) = mutability {
+                if let StaticMutability::Mut(mutability) = mutability {
                     return Err(Error::new(mutability.span(), "Cannot use mutable statics."));
                 }
                 let ctored = ctor(
