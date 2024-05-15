@@ -1,7 +1,8 @@
 #![feature(proc_macro_span)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-
+#![deny(unused_must_use)]
+use std::fmt::Write;
 extern crate proc_macro;
 
 use std::collections::hash_map::DefaultHasher;
@@ -23,20 +24,30 @@ use syn::{
 };
 
 fn ctor(crat: &Path, name: &Ident, body: &TokenStream2) -> TokenStream2 {
-    let mut hasher = DefaultHasher::new();
-    name.to_string().hash(&mut hasher);
-    name.span().unwrap().source_file().path().hash(&mut hasher);
-    name.span().start().line.hash(&mut hasher);
-    name.span().start().column.hash(&mut hasher);
-    name.span().end().line.hash(&mut hasher);
-    name.span().end().column.hash(&mut hasher);
-    let hash = format!("{:016X}", hasher.finish());
+    let mut unique_name = String::new();
+    let mut span = name.span().unwrap();
+    loop {
+        write!(&mut unique_name, "_{:?}", span.source_file().path()).unwrap();
+        write!(&mut unique_name, "_{:?}", span.start().line()).unwrap();
+        write!(&mut unique_name, "_{:?}", span.start().column()).unwrap();
+        write!(&mut unique_name, "_{:?}", span.end().line()).unwrap();
+        write!(&mut unique_name, "_{:?}", span.end().column()).unwrap();
+        span = if let Some(span) = span.parent() {
+            span
+        } else {
+            break;
+        }
+    }
+    let unique_name: String = unique_name
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '_' })
+        .collect();
     let pub_ident_fn = syn::parse_str::<syn::Ident>(
-        format!("rust_registry___registry___{}_{}", name, hash).as_ref(),
+        format!("rust_registry___registry___{}_{}", name, unique_name).as_ref(),
     )
     .expect("Unable to create identifier");
     let pub_ident_static = syn::parse_str::<syn::Ident>(
-        format!("RUST_REGISTRY___REGISTRY___{}_{}", name, hash).as_ref(),
+        format!("RUST_REGISTRY___REGISTRY___{}_{}", name, unique_name).as_ref(),
     )
     .expect("Unable to create identifier");
     let bytes = format!("{} ", pub_ident_fn).into_bytes();
